@@ -52,6 +52,38 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
+def plot_anomaly_by_label():
+    X_train, X_test, y_train, y_test, class_names = [], [], [], [], []
+    for X, y, fo, file_names in data_generator():
+        X=np.concatenate(X)
+        per_anomaly_len  = len(X)/len(y)
+        Xdf = pd.DataFrame(X, columns=training_config.interested_data_fields)
+        ax = Xdf.plot(legend=True, title=fo)
+        ax.set_xlabel('Time')
+        for xc in range(per_anomaly_len, len(X), per_anomaly_len):
+            ax.axvline(x=xc, color='k', linestyle='--')
+        ax.legend(loc='best', framealpha=0.2)
+    plt.show()
+    
+
+def get_all_anomalies_data_with_label():
+    anomaly_data_path = os.path.join(training_config.config_by_user['base_path'], 'all_anomalies')    
+    folders = os.listdir(anomaly_data_path)
+    X, y, class_names= [], [], []
+    for fo in folders:
+        path = os.path.join(anomaly_data_path, fo)
+        if not os.path.isdir(path):
+            continue
+        anomaly_data_group_by_folder_name = util.get_anomaly_data_for_labelled_case(training_config, path)
+        temp = anomaly_data_group_by_folder_name.values()
+        for i in range(len(temp)):
+            X.append(temp[i][1])
+            y.append(fo)
+        class_names.append(fo)
+    return X, y, class_names
+
+    
+
 def data_generator():
     anomaly_data_path = os.path.join(training_config.config_by_user['base_path'], 'all_anomalies')    
     folders = os.listdir(anomaly_data_path)
@@ -62,10 +94,11 @@ def data_generator():
             continue
         anomaly_data_group_by_folder_name = util.get_anomaly_data_for_labelled_case(training_config, path)
         temp = anomaly_data_group_by_folder_name.values()
+        file_names = anomaly_data_group_by_folder_name.keys()
         for i in range(len(temp)):
             X.append(temp[i][1])
             y.append(fo)
-        yield X, y, fo        
+        yield X, y, fo, file_names        
 
 def predict(X_test):
     # load trained anomaly models
@@ -73,7 +106,7 @@ def predict(X_test):
     anomaly_data_path = os.path.join(training_config.config_by_user['base_path'], 'all_anomalies')
     folders = os.listdir(anomaly_data_path)
     for fo in folders:
-        anomaly_model_path = os.path.join(anomaly_data_path,
+        anomaly_model_path = os.path.join(training_config.anomaly_model_save_path,
                                                fo,
                                                training_config.config_by_user['data_type_chosen'],
                                                training_config.config_by_user['model_type_chosen'],
@@ -82,6 +115,7 @@ def predict(X_test):
             anomaly_model_group_by_label[fo] = joblib.load(anomaly_model_path + "/model_s%s.pkl"%(1,))
         except IOError:
             print 'anomaly model of  %s not found'%(fo,)
+            ipdb.set_trace()
             raw_input("sorry! cann't load the anomaly model")
             continue
 
@@ -153,6 +187,7 @@ def classifier_fit(X, y, class_names):
 
 
 def run():
+    '''
     test_rate = 0.5
     X_train, X_test, y_train, y_test, class_names = [], [], [], [], []
     for X, y, fo in data_generator():
@@ -166,9 +201,12 @@ def run():
         class_names.append(fo)
     X_train = np.concatenate(X_train).tolist()
     y_train = np.concatenate(y_train).tolist()
+    '''
 
-#    X, y, class_names = get_all_anomalies_data_with_label()
-#    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.5, random_state=None, stratify=y)
+    plot_anomaly_by_label()
+    
+    X, y, class_names = get_all_anomalies_data_with_label()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.5, random_state=None, stratify=y)
 
     classifier_fit(X_train, y_train, class_names)
     

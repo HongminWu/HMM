@@ -73,7 +73,7 @@ config_by_user = {
     'base_path': base_path_options[-1],
 
     # config for preprocessing
-    'preprocessing_scaling': False, # scaled data has zero mean and unit variance
+    'preprocessing_scaling': False,   # scaled data has zero mean and unit variance
     'preprocessing_normalize': False, # normalize the individual samples to have unit norm "l1" or 'l2'
     'norm_style': 'l2',
     'pca_components': 0, # cancel the pca processing

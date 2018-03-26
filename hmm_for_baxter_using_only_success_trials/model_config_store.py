@@ -79,8 +79,7 @@ model_store = {
                 'hmm_hidden_state_amount': 10,
                 'alloModel' : 'HDPHMM',     
                 'obsModel'  : 'AutoRegGauss',  
-                'ECovMat'   : ['covfirstdiff', 'diagcovfirstdiff'],
-                #'ECovMat'   : ['covdata', 'diagcovdata','covfirstdiff', 'diagcovfirstdiff'],
+                'ECovMat'   : ['covdata', 'diagcovdata','covfirstdiff', 'diagcovfirstdiff'],
                 'varMethod' : 'memoVB',
             },
             
