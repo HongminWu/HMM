@@ -146,13 +146,6 @@ base_path_options = [
 	'/home/birl_wu/HMM/kitting_experiment_data/'
 ]
 
-# hardcoded constants.
-data_type_options = [
-    'endpoint_pose',
-    'wrench',
-    'endpoint_pose_and_wrench'
-]
-
 model_type_options = [
     'hmmlearn\'s HMM',
     'hmmlearn\'s GMMHMM',
@@ -164,7 +157,7 @@ model_type_options = [
 #modality_chosen = 'CartesianWrench+JointPosition'
 
 #for baxter_robot
-modality_chosen = 'endpoint_state_twist+wrench+tactile_sensor_data'
+modality_chosen = 'wrench+delta_wrench'
 
 modality_split = modality_chosen.split("+")
 interested_data_fields = []
@@ -210,7 +203,7 @@ model_save_path = os.path.join(config_by_user['base_path'], "model", config_by_u
 figure_save_path = os.path.join(config_by_user['base_path'], "figure", config_by_user['data_type_chosen'], config_by_user['model_type_chosen'], model_id)
 
 # for anomaly analysis
-anomaly_data_path = os.path.join(config_by_user['base_path'], 'anomalies')
+anomaly_data_path = os.path.join(config_by_user['base_path'], 'all_anomalies')
 anomaly_data_path_for_testing = os.path.join(config_by_user['base_path'], 'anomalies_for_testing')
 anomaly_model_save_path = os.path.join(config_by_user['base_path'], "anomaly_models")
 anomaly_identification_figure_path = os.path.join(config_by_user['base_path'], "figure", config_by_user['data_type_chosen'], config_by_user['model_type_chosen'], model_id)

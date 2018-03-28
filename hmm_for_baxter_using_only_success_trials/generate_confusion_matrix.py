@@ -12,7 +12,9 @@ import itertools
 from sklearn.externals import joblib
 from sklearn.model_selection import LeavePOut
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+from scipy import interp
+from itertools import cycle
 import matplotlib.pyplot as plt
 
 import ipdb
@@ -58,16 +60,16 @@ def plot_anomaly_by_label():
         X=np.concatenate(X)
         per_anomaly_len  = len(X)/len(y)
         Xdf = pd.DataFrame(X, columns=training_config.interested_data_fields)
-        ax = Xdf.plot(legend=True, title=fo)
-        ax.set_xlabel('Time')
-        for xc in range(per_anomaly_len, len(X), per_anomaly_len):
-            ax.axvline(x=xc, color='k', linestyle='--')
-        ax.legend(loc='best', framealpha=0.2)
+        ax = Xdf.plot(subplots=True, legend=True, title=fo)
+        for i in range(len(ax)):
+            ax[i].set_xlabel('Time')
+            for xc in range(per_anomaly_len, len(X), per_anomaly_len):
+                ax[i].axvline(x=xc, color='k', linestyle='--')
+                ax[i].legend(loc='best', framealpha=0.2)
     plt.show()
-    
 
 def get_all_anomalies_data_with_label():
-    anomaly_data_path = os.path.join(training_config.config_by_user['base_path'], 'all_anomalies')    
+    anomaly_data_path = training_config.anomaly_data_path    
     folders = os.listdir(anomaly_data_path)
     X, y, class_names= [], [], []
     for fo in folders:
@@ -81,11 +83,10 @@ def get_all_anomalies_data_with_label():
             y.append(fo)
         class_names.append(fo)
     return X, y, class_names
-
     
 
 def data_generator():
-    anomaly_data_path = os.path.join(training_config.config_by_user['base_path'], 'all_anomalies')    
+    anomaly_data_path = training_config.anomaly_data_path    
     folders = os.listdir(anomaly_data_path)
     for fo in folders:
         X, y= [],[]
@@ -99,6 +100,36 @@ def data_generator():
             X.append(temp[i][1])
             y.append(fo)
         yield X, y, fo, file_names        
+
+def predict_proba(X_test, class_names):
+    # load trained anomaly models
+    anomaly_model_group_by_label = {}
+    anomaly_data_path = training_config.anomaly_data_path
+    folders = os.listdir(anomaly_data_path)
+    for fo in folders:
+        anomaly_model_path = os.path.join(training_config.anomaly_model_save_path,
+                                               fo,
+                                               training_config.config_by_user['data_type_chosen'],
+                                               training_config.config_by_user['model_type_chosen'],
+                                               training_config.model_id)
+        try:
+            anomaly_model_group_by_label[fo] = joblib.load(anomaly_model_path + "/model_s%s.pkl"%(1,))
+        except IOError:
+            print 'anomaly model of  %s not found'%(fo,)
+            ipdb.set_trace()
+            raw_input("sorry! cann't load the anomaly model")
+            continue
+
+    predict_score = []
+    calc_cofidence_resourse = []
+    for i in range(len(X_test)):
+        temp_loglik = []
+        for model_label in class_names:
+            one_log_curve_of_this_model = util.fast_log_curve_calculation(X_test[i], anomaly_model_group_by_label[model_label])
+            temp_loglik.append(one_log_curve_of_this_model[-1])
+        temp_score = temp_loglik / np.sum(temp_loglik)
+        predict_score.append(temp_score)
+    return np.array(predict_score)
 
 def predict(X_test):
     # load trained anomaly models
@@ -135,8 +166,10 @@ def predict(X_test):
         predict_class.append(classified_model)
     return predict_class
 
+
+
     
-def classifier_fit(X, y, class_names):
+def fit(X, y, class_names):
     '''
     function: train all the anomalious models
     '''
@@ -185,12 +218,98 @@ def classifier_fit(X, y, class_names):
             os.path.join(anomaly_model_path, "model_s%s.pkl"%(1,))
         )
 
+def plot_roc_for_multiple_classes(X_test, y_test, class_names):
+    from sklearn.preprocessing import label_binarize
+    y_test = label_binarize(y_test, classes=class_names)
+    n_classes = len(class_names)
+    y_score = predict_proba(X_test, class_names)
 
-def run():
-    '''
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+    # Compute micro-average ROC curve and ROC area
+    fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+
+    ##############################################################################
+    # Plot of a ROC curve for a specific class
+    plt.figure()
+    lw = 2
+    plt.plot(fpr[2], tpr[2], color='darkorange',
+             lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    plt.show()
+
+
+    ##############################################################################
+    # Plot ROC curves for the multiclass problem
+
+    # Compute macro-average ROC curve and ROC area
+
+    # First aggregate all false positive rates
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+
+    # Then interpolate all ROC curves at this points
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(n_classes):
+        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+    # Finally average it and compute AUC
+    mean_tpr /= n_classes
+
+    fpr["macro"] = all_fpr
+    tpr["macro"] = mean_tpr
+    roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+
+    # Plot all ROC curves
+    plt.figure()
+    plt.plot(fpr["micro"], tpr["micro"],
+             label='micro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["micro"]),
+             color='deeppink', linestyle=':', linewidth=4)
+
+    plt.plot(fpr["macro"], tpr["macro"],
+             label='macro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["macro"]),
+             color='navy', linestyle=':', linewidth=4)
+
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                 label='ROC curve of class {0} (area = {1:0.2f})'
+                 ''.format(class_names[i], roc_auc[i]))
+
+    plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Some extension of Receiver operating characteristic to multi-class')
+    plt.legend(loc="lower right")
+    plt.show()
+
+def run(if_plot):
+    
+    if if_plot:
+        plot_anomaly_by_label()
+        raw_input('Press any key to continue?')
+
+    
     test_rate = 0.5
     X_train, X_test, y_train, y_test, class_names = [], [], [], [], []
-    for X, y, fo in data_generator():
+    for X, y, fo,_ in data_generator():
         for i in range(int(len(y)*test_rate)):
             temp_X = X.pop()
             temp_y = y.pop()
@@ -201,26 +320,20 @@ def run():
         class_names.append(fo)
     X_train = np.concatenate(X_train).tolist()
     y_train = np.concatenate(y_train).tolist()
-    '''
-
-    plot_anomaly_by_label()
     
+
+    '''
     X, y, class_names = get_all_anomalies_data_with_label()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.5, random_state=None, stratify=y)
+    '''
+    
+    fit(X_train, y_train, class_names)
 
-    classifier_fit(X_train, y_train, class_names)
+    # for plot roc
+    plot_roc_for_multiple_classes(X_test, y_test, class_names)
     
-    '''
-    for X, y in get_all_anomalies_data_with_label():
-    lpo = LeavePOut(1)
-    lpo.get_n_splits(trial_index)
-    for train_index, test_index in lpo.split(trial_index):
-        print('TRAIN:', train_index, "TEST:", test_index)
-    '''
-    
-    # for testing
+    # for testing classifier
     y_pred = predict(X_test)
-
     print y_test
     print '\n'
     print y_pred
@@ -242,4 +355,4 @@ def run():
 
     
 if __name__=='__main__':
-    sys.exit(run())
+    sys.exit(run(if_plot=False))
