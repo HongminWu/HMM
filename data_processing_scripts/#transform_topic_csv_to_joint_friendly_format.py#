@@ -16,7 +16,7 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.base_folder is None:
-        parser.error("no base_folder, please add -d dir or -h for detailed help")
+        parser.error("no base_folder")
     else:
         base_folder = options.base_folder
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
             df['.joint_state.position.'+joint_name] = np.nan
             df['.joint_state.velocity.'+joint_name] = np.nan
             df['.joint_state.effort.'+joint_name] = np.nan
-
+    
         column_names = df.columns
         def apply_func(x):
             x = eval(x)

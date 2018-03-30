@@ -76,7 +76,7 @@ model_store = {
         'config_set': {
             'default': {
                 'hmm_max_train_iteration': 1000,
-                'hmm_hidden_state_amount': 10,
+                'hmm_hidden_state_amount': 5,
                 'alloModel' : 'HDPHMM',     
                 'obsModel'  : 'AutoRegGauss',  
                 'ECovMat'   : ['covdata', 'diagcovdata','covfirstdiff', 'diagcovfirstdiff'],

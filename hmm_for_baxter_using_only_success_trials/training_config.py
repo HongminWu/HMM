@@ -102,6 +102,24 @@ modalities_store = {
 		'.tactile_values.tactile_values_8',
 		'.tactile_values.tactile_values_9',
 		],
+
+    # for the magnitude i.e norm
+    'wrench_magnitude':[
+        '.wrench_stamped.wrench.force.magnitude',
+        '.wrench_stamped.wrench.torque.magnitude',
+        ],
+
+    'endpoint_state_twist_magnitude':[
+        '.endpoint_state.twist.linear.magnitude',
+        '.endpoint_state.twist.angular.magnitude',
+        ],
+
+    'endpoint_state_wrench_magnitude':[
+        '.endpoint_state.wrench.force.magnitude',
+        '.endpoint_state.wrench.torque.magnitude',
+        ],
+    
+        
 }
 
 score_metric_options = [
@@ -143,7 +161,7 @@ base_path_options = [
     '/home/vmrguser/Files_from_Shuangqi_to_Workstation/birl/data_for_or_from_HMM/ML_DATA_HONGMINWU/samePoint_3targetPoints/test',
     '/home/vmrguser/Files_from_Shuangqi_to_Workstation/birl/data_for_or_from_HMM/ML_DATA_HONGMINWU/move_to_random_pose/',
     '/home/vmrguser/Files_from_Shuangqi_to_Workstation/birl/data_for_or_from_HMM/ML_DATA_HONGMINWU/anomaly_identification/',
-	'/home/birl_wu/HMM/kitting_experiment_data/'
+	'/home/birl_wu/time-series-classification-clustering/HMM/kitting_experiment_data/'
 ]
 
 model_type_options = [
@@ -157,7 +175,7 @@ model_type_options = [
 #modality_chosen = 'CartesianWrench+JointPosition'
 
 #for baxter_robot
-modality_chosen = 'wrench+delta_wrench'
+modality_chosen = 'endpoint_state_twist+wrench'
 
 modality_split = modality_chosen.split("+")
 interested_data_fields = []
